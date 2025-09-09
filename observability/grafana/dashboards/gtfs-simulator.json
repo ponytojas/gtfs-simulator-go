@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 38,
+  "title": "GTFS Simulator",
+  "uid": "gtfs-sim",
+  "version": 1,
+  "timezone": "",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active Trips",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [ { "expr": "simulator_active_trips" } ],
+      "options": { "reduceOptions": {"calcs": ["lastNotNull"], "fields": "" } }
+    },
+    {
+      "type": "stat",
+      "title": "Scheduled Trips",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [ { "expr": "simulator_scheduled_trips" } ],
+      "options": { "reduceOptions": {"calcs": ["lastNotNull"], "fields": "" } }
+    },
+    {
+      "type": "stat",
+      "title": "NATS Connected",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [ { "expr": "simulator_nats_connected" } ],
+      "options": { "reduceOptions": {"calcs": ["lastNotNull"], "fields": "" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Publish Rate",
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 4},
+      "targets": [ { "expr": "rate(simulator_nats_published_total[5m])" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Publish Errors",
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 4},
+      "targets": [ { "expr": "rate(simulator_nats_publish_errors_total[5m])" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tick p95 (s)",
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 11},
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(simulator_tick_duration_seconds_bucket[5m])))" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Publish p95 (s)",
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 11},
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(simulator_publish_duration_seconds_bucket[5m])))" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DB Switches",
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 18},
+      "targets": [ { "expr": "increase(simulator_db_switches_total[6h])", "legendFormat": "{{reason}}" } ]
+    }
+  ]
+}
+

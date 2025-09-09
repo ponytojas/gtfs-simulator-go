@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: 'gtfs-simulator'
+    static_configs:
+      # If simulator runs on host, Docker can reach it via host.docker.internal on macOS/Windows.
+      # On Linux, replace with your host IP (e.g., 172.17.0.1:9102) or run the simulator in Docker.
+      - targets: ['host.docker.internal:9102']
+
