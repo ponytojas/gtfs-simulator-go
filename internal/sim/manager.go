@@ -2,7 +2,9 @@ package sim
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"log"
 	"math"
 	"sync"
@@ -33,6 +35,9 @@ type Manager struct {
 
 	scheduled   map[string]context.CancelFunc // tripID -> cancel (not yet started)
 	scheduledWG sync.WaitGroup
+
+	// vehicleIDs maps tripID-routeID combinations to unique vehicle IDs
+	vehicleIDs map[string]string // "tripID-routeID" -> vehicleID
 }
 
 func NewManager(dbConn *sql.DB, pub *publisher.NATSPublisher, publishInterval time.Duration, speedMultiplier float64, tz *time.Location, refreshInterval time.Duration, preloadHorizon time.Duration, metrics *mmetrics.Collector) *Manager {
@@ -47,7 +52,32 @@ func NewManager(dbConn *sql.DB, pub *publisher.NATSPublisher, publishInterval ti
 		metrics:         metrics,
 		running:         make(map[string]context.CancelFunc),
 		scheduled:       make(map[string]context.CancelFunc),
+		vehicleIDs:      make(map[string]string),
 	}
+}
+
+// GetOrCreateVehicleID returns a unique and persistent vehicle ID for the given tripID-routeID combination
+func (m *Manager) GetOrCreateVehicleID(tripID, routeID string) string {
+	key := tripID + "-" + routeID
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Check if we already have a vehicle ID for this combination
+	if vehicleID, exists := m.vehicleIDs[key]; exists {
+		return vehicleID
+	}
+
+	// Generate a new unique vehicle ID using a hash of the combination
+	// This ensures the same tripID-routeID always gets the same vehicle ID
+	hasher := sha256.New()
+	hasher.Write([]byte(key))
+	hash := hasher.Sum(nil)
+	vehicleID := "VEH-" + hex.EncodeToString(hash)[:8] // Use first 8 chars of hash for readability
+
+	// Store it for future use
+	m.vehicleIDs[key] = vehicleID
+	return vehicleID
 }
 
 func (m *Manager) Start(ctx context.Context, trips []gtfs.ActiveTrip) {
@@ -128,6 +158,7 @@ func (m *Manager) runTrip(ctx context.Context, t gtfs.ActiveTrip) error {
 
 	routeID := t.RouteID
 	tripID := t.TripID
+	vehicleID := m.GetOrCreateVehicleID(tripID, routeID)
 
 	lastPosTime := time.Time{}
 	var lastLat, lastLon float64
@@ -176,6 +207,7 @@ func (m *Manager) runTrip(ctx context.Context, t gtfs.ActiveTrip) error {
 			pm := publisher.PositionMessage{
 				TripID:    tripID,
 				RouteID:   routeID,
+				VehicleID: vehicleID,
 				Timestamp: now,
 				Lat:       lat,
 				Lon:       lon,

@@ -64,6 +64,7 @@ func (p *NATSPublisher) Close() {
 type PositionMessage struct {
 	TripID    string    `json:"tripId"`
 	RouteID   string    `json:"routeId"`
+	VehicleID string    `json:"vehicleId"`
 	Timestamp time.Time `json:"timestamp"`
 	Lat       float64   `json:"lat"`
 	Lon       float64   `json:"lon"`
