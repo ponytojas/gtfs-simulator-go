@@ -3,7 +3,7 @@
 ## Overview
 
 - Reads a GTFS dataset from PostgreSQL/PostGIS (imported with [postgis-gtfs-importer](https://github.com/mobidata-bw/postgis-gtfs-importer)) and simulates active vehicles based on calendar/calendar_dates and stop_times.
-- Publishes simulated positions to NATS with subject `routeId.tripId`.
+- Publishes simulated positions to NATS JetStream on subject `vehicles.<routeId>.<tripId>`.
 - Each vehicle (trip) runs in its own goroutine.
 
 ## Configuration
@@ -12,6 +12,7 @@
   - `DATABASE_URL` or `PGHOST/PGPORT/PGUSER/PGPASSWORD/PGSSLMODE` (+ `PGDATABASE`)
   - `CITY` (or `CITY_NAME`) – if set, the simulator connects to the cluster's `postgres` DB, queries `public.latest_successful_imports` for the newest `db_name` matching the city (ILIKE), and uses that DB. Ensure your base DSN points to the same cluster and `PGDATABASE=postgres` (or use a `DATABASE_URL` with `/postgres`).
   - `NATS_URL` (default `nats://127.0.0.1:4222`)
+  - `NATS_STREAM_NAME` (default `VEHICLES`) – JetStream stream that contains subjects `vehicles.>`
   - `LOG_NATS_SUBJECTS` (default off) – when true, logs each NATS subject published
   - `METRICS_ADDR` (e.g., `:9102`) – when set, exposes Prometheus metrics at `/metrics`
   - `PUBLISH_INTERVAL_MS` (default `1000`)
@@ -34,10 +35,11 @@ go build ./cmd/simulator
 - Simulation uses the `shapes` polyline of each trip; progress is computed from the first to last stop time and interpolated along the shape.
 - Segment speeds follow stop_times: movement between stops uses per-stop arrival/departure times. Distance along the shape between stops uses `stop_times.shape_dist_traveled` when available; otherwise, stops are mapped to the nearest position on the trip shape using stop coordinates. If that is unavailable too, distances are distributed evenly. Dwell times (arrival != departure) produce pauses at stops.
 - If `shape_dist_traveled` is present in `shapes` or `stop_times`, it is used; otherwise, haversine distances are computed between shape points.
-- Vehicle ID is set to the trip ID to remain deterministic and consistent; subjects are sanitized to avoid illegal NATS tokens.
+- Vehicle ID is a stable hash derived from the `tripID-routeID` pair (e.g., `VEH-xxxxxxxx`); subjects are sanitized to avoid illegal NATS tokens.
 - When `CITY` is set, the simulator re-checks `public.latest_successful_imports` every 30 minutes and on DB ping failures. If a newer `db_name` is found or the current DB is unavailable, it gracefully switches to the new database and restarts simulations.
 - Active trips are re-queried every `TRIPS_REFRESH_INTERVAL_SEC`; newly active trips start automatically and finished trips stop on their end time.
 - Trips starting within `TRIPS_PRELOAD_MINUTES` are pre-scheduled to start exactly at their start time, reducing DB polling load.
+ - On startup, the simulator ensures a JetStream stream named `NATS_STREAM_NAME` exists and includes the subject pattern `vehicles.>`. Position messages are published via JetStream with acks.
 
 ## Observability
 

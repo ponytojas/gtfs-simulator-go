@@ -12,13 +12,14 @@ import (
 )
 
 type Config struct {
-	DatabaseURL          string
-	NATSURL              string
-	PublishInterval      time.Duration
-	TripsRefreshInterval time.Duration
-	PreloadHorizon       time.Duration
-	SpeedMultiplier      float64
-	Location             *time.Location
+    DatabaseURL          string
+    NATSURL              string
+    NATSStreamName       string
+    PublishInterval      time.Duration
+    TripsRefreshInterval time.Duration
+    PreloadHorizon       time.Duration
+    SpeedMultiplier      float64
+    Location             *time.Location
 	City                 string
 	LogNATSSubjects      bool
 	MetricsAddr          string
@@ -59,6 +60,9 @@ func Load() (*Config, error) {
 	}
 
 	cfg.NATSURL = getenvDefault("NATS_URL", "nats://127.0.0.1:4222")
+
+	// JetStream stream name for vehicle subjects
+	cfg.NATSStreamName = getenvDefault("NATS_STREAM_NAME", "VEHICLES")
 
 	// Publish interval
 	if v := os.Getenv("PUBLISH_INTERVAL_MS"); v != "" {

@@ -88,10 +88,10 @@ func main() {
 	}
 
 	// Initialize NATS publisher
-	pub, err := publisher.NewNATSPublisher(cfg.NATSURL, cfg.LogNATSSubjects, wrapPublisherMetrics(mcol))
-	if err != nil {
-		log.Fatalf("nats error: %v", err)
-	}
+    pub, err := publisher.NewNATSPublisher(cfg.NATSURL, cfg.LogNATSSubjects, wrapPublisherMetrics(mcol), cfg.NATSStreamName)
+    if err != nil {
+        log.Fatalf("nats error: %v", err)
+    }
 	defer pub.Close()
 
 	// Fetch active trips for today and start simulation manager
